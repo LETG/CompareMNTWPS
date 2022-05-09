@@ -39,7 +39,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 	 * @return
 	 */
 	@DescribeProcess(title = "Compare MNT", description = "give Mnt point")
-	@DescribeResult(name = "resulFeatureCollection", description = "the result of drawing radials in reference Line")
+	@DescribeResult(name = "resultFeatureCollection", description = "the result of drawing radials in reference Line")
 	public static FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT(
 			@DescribeParameter(name = "mnt1", description = "the input referenceLine") final FeatureCollection<SimpleFeatureType, SimpleFeature> mnt1,
 			@DescribeParameter(name = "mnt2", description = "the input referenceLine") final FeatureCollection<SimpleFeatureType, SimpleFeature> mnt2) {
