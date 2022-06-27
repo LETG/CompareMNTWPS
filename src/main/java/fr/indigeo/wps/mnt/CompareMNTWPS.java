@@ -1,9 +1,9 @@
 package fr.indigeo.wps.mnt;
 
+import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
@@ -19,16 +19,20 @@ import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.wms.MapLayerInfo;
 import org.geoserver.wps.WPSException;
 import org.geoserver.wps.gs.GeoServerProcess;
+import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.gce.geotiff.GeoTiffFormat;
+import org.geotools.gce.geotiff.GeoTiffReader;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.process.factory.StaticMethodsProcessFactory;
 import org.geotools.text.Text;
+import org.geotools.util.factory.Hints;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.locationtech.jts.geom.Coordinate;
@@ -178,7 +182,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		
 		// How to get specific image in imagemosaic layer how to set CQL filter on Location and date
 		// via coverage normally but doesnot work
-		
+
 		//LayerInfo info = gs.getCatalog().getLayerByName(LAYERNAME);
 		//if( info == null ) {
 		//	throw new WPSException("Layer not found in catalog : "+LAYERNAME);
@@ -190,19 +194,35 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		
 		// get tiff from datadir
 
+		Hints forceLongLat = new Hints(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.TRUE);
+		GeoTiffFormat format = new GeoTiffFormat();
+
 		String mnt1Path = getTiffPath(codeSite, initDate);
 		String mnt2Path = getTiffPath(codeSite, dateToCompare);
+			
+		GeoTiffReader reader1 = format.getReader(mnt1Path, forceLongLat);
+		GeoTiffReader reader2 = format.getReader(mnt2Path, forceLongLat);
 		
-		// get band from raster 1
-		Dataset dataset1 = gdal.Open(mnt1Path, gdalconst.GA_ReadOnly);
-		Band band1 = dataset1.GetRasterBand(1);
+		LOGGER.info("band " + Arrays.toString(reader1.getGridCoverageCount()));
+		LOGGER.info("band " +  Arrays.toString(reader2.getGridCoverageCount()));
 
-		// get band from raster 2
-		Dataset dataset2 = gdal.Open(mnt1Path, gdalconst.GA_ReadOnly);
-		Band band2 = dataset2.GetRasterBand(1);
+		GridCoverage2D coverage1 = reader1.read(null);
+		GridCoverage2D coverage2 = reader2.read(null);
+
+		// create intersect beetween enveloppe to keep comparable coordinate
+		Rectangle2D rectangle = coverage1.getEnvelope2D().createIntersection(coverage2.getEnvelope2D());
 		
-		LOGGER.info(dataset1.getRasterXSize());
-		LOGGER.info(dataset1.getRasterYSize());
+		// from Xmin to Xmax
+		for(double x=rectangle.getMinX();x>rectangle.getMaxX(); x++){
+			//from Ymin to Ymax
+			for(double y=rectangle.getMinY();y>rectangle.getMaxY(); y++){
+				// compare elevation on both image
+
+			}
+		} 
+
+
+		LOGGER.info("Elevation model CRS is: " + coverage1.getCoordinateReferenceSystem2D());
 		
 		// get maxExtend
 	
