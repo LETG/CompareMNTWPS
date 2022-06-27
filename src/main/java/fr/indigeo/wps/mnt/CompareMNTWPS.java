@@ -1,6 +1,23 @@
 package fr.indigeo.wps.mnt;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Properties;
+
 import org.apache.log4j.Logger;
+import org.gdal.gdal.Band;
+import org.gdal.gdal.Dataset;
+import org.gdal.gdal.gdal;
+import org.gdal.gdalconst.gdalconst;
+import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.PublishedType;
+import org.geoserver.config.GeoServer;
+import org.geoserver.config.impl.GeoServerImpl;
+import org.geoserver.platform.GeoServerExtensions;
+import org.geoserver.wms.MapLayerInfo;
+import org.geoserver.wps.WPSException;
 import org.geoserver.wps.gs.GeoServerProcess;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.FeatureCollection;
@@ -38,11 +55,11 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 	 * @param mnt2 to compare
 	 * @return
 	 */
-	@DescribeProcess(title = "Compare MNT", description = "give Mnt point")
-	@DescribeResult(name = "resultFeatureCollection", description = "the result of drawing radials in reference Line")
+	@DescribeProcess(title = "Compare MNT cloud point", description = "give Mnt point")
+	@DescribeResult(name = "resultFeatureCollection", description = "A mnt cloud point diff")
 	public static FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT(
-			@DescribeParameter(name = "mnt1", description = "the input referenceLine") final FeatureCollection<SimpleFeatureType, SimpleFeature> mnt1,
-			@DescribeParameter(name = "mnt2", description = "the input referenceLine") final FeatureCollection<SimpleFeatureType, SimpleFeature> mnt2) {
+			@DescribeParameter(name = "mnt1", description = "first mnt to compare") final FeatureCollection<SimpleFeatureType, SimpleFeature> mnt1,
+			@DescribeParameter(name = "mnt2", description = "second mnt to compare") final FeatureCollection<SimpleFeatureType, SimpleFeature> mnt2) {
 		
 		DefaultFeatureCollection resultFeatureCollection = null;
 
@@ -124,4 +141,96 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 	return resultFeatureCollection;
 	}
 
+
+	/**
+	 * @param codeSite reference 
+	 * @param initDate
+	 * @param dateToCompare
+	 * @return Tiff
+	 * @throws IOException
+	 */
+	@DescribeProcess(title = "Compare Raster mnt", description = "give diff raster mnt")
+	@DescribeResult(name = "rasterResult", description = "Raster with comparaison band")
+	public static FeatureCollection<SimpleFeatureType, SimpleFeature> compareRasterMNT(
+			@DescribeParameter(name = "codeSite", description = "id site on 6 char") final String codeSite,
+			@DescribeParameter(name = "initDate", description = "first date") final String initDate,
+			@DescribeParameter(name = "dateToCompare", description = "second date to compare") final String dateToCompare) throws IOException {
+		
+		DefaultFeatureCollection resultFeatureCollection = null;
+
+		LOGGER.info("Compare Raster mnt");
+
+		// Init simple feature to add in collection
+		SimpleFeatureTypeBuilder simpleFeatureTypeBuilder = new SimpleFeatureTypeBuilder();
+		simpleFeatureTypeBuilder.setName("featureType");
+		simpleFeatureTypeBuilder.add("geometry", Point.class);
+		simpleFeatureTypeBuilder.add("elevationDiff", Double.class);
+
+		// init DefaultFeatureCollection
+		SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(simpleFeatureTypeBuilder.buildFeatureType());
+		resultFeatureCollection = new DefaultFeatureCollection(null, simpleFeatureBuilder.getFeatureType());
+			
+		GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING), 2154);
+		//final String LAYERNAME = "mnt";
+		
+		// get value from geoserver workspace
+		//GeoServer gs = GeoServerExtensions.bean(GeoServerImpl.class);
+		
+		// How to get specific image in imagemosaic layer how to set CQL filter on Location and date
+		// via coverage normally but doesnot work
+		
+		//LayerInfo info = gs.getCatalog().getLayerByName(LAYERNAME);
+		//if( info == null ) {
+		//	throw new WPSException("Layer not found in catalog : "+LAYERNAME);
+		//}
+		//if( !info.getType().equals(PublishedType.RASTER) ) {
+		//	throw new WPSException("Layer found in catalog but not a raster one : "+LAYERNAME);
+		//}
+		//	MapLayerInfo mapInfo = new MapLayerInfo(info);
+		
+		// get tiff from datadir
+
+		String mnt1Path = getTiffPath(codeSite, initDate);
+		String mnt2Path = getTiffPath(codeSite, dateToCompare);
+		
+		// get band from raster 1
+		Dataset dataset1 = gdal.Open(mnt1Path, gdalconst.GA_ReadOnly);
+		Band band1 = dataset1.GetRasterBand(1);
+
+		// get band from raster 2
+		Dataset dataset2 = gdal.Open(mnt1Path, gdalconst.GA_ReadOnly);
+		Band band2 = dataset2.GetRasterBand(1);
+		
+		LOGGER.info(dataset1.getRasterXSize());
+		LOGGER.info(dataset1.getRasterYSize());
+		
+		// get maxExtend
+	
+		//band1.ReadRaster(x, y, 1, 1, result);
+
+		return resultFeatureCollection;
+	}
+
+	private static String getTiffPath(String codeSite, String date) throws IOException {
+        
+		InputStream input = CompareMNTWPS.class.getClassLoader().getResourceAsStream("config.properties");
+        Properties prop = new Properties();      
+       	if (input == null) {
+            LOGGER.error("Unable to find config.properties");
+        }
+        //load a properties file from class path, inside static method
+        prop.load(input);
+        final String TIFF_FOLDER = prop.getProperty("tiff.folder");
+        if (TIFF_FOLDER == null) {
+            LOGGER.error("Unable to find folder in configuration");
+        }
+		
+        StringBuffer sbFileName = new StringBuffer(TIFF_FOLDER);
+        sbFileName.append(codeSite);
+        sbFileName.append("_");
+        sbFileName.append(date);
+        sbFileName.append(".tiff");
+
+        return sbFileName.toString();
+    }
 }

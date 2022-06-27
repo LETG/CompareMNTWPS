@@ -21,14 +21,14 @@ public class TestWPS {
 	private static final File mnt1File = new File(dataDir, "mnt1.json");
 	private static final File mnt2File = new File(dataDir, "mnt2.json");
 
-	@Test
-	public void testAllServices() {
+	
+	public void testCloudComparaison() {
 		try {
-			// draw radials Test
+			//  compare cloud
 			FeatureCollection<SimpleFeatureType, SimpleFeature> mnt1 = getFeatureCollections(mnt1File);
 			FeatureCollection<SimpleFeatureType, SimpleFeature> mnt2 = getFeatureCollections(mnt2File);
 
-			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = compareMNTTest(mnt1, mnt2);
+			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = CompareMNTWPS.compareMNT(mnt1, mnt2);
 			getGeoJsonFile(compareMNT, dataDir, "compare");
 			LOGGER.info("compare.json est généré dans le dossier data de votre projet ! vous pouvez le visualiser maintenant.");
 
@@ -39,10 +39,23 @@ public class TestWPS {
 		}
 	}
 
-	public static FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNTTest(
-			FeatureCollection<SimpleFeatureType, SimpleFeature> mnt1, FeatureCollection<SimpleFeatureType, SimpleFeature> mnt2) {
+	@Test
+	public void testRasterComparaison() {
+		try {
+			//  compare cloud
+			String codeSite="VOUGOT";
+			String initDate="20050701";
+			String compareDate="20170825";
 
-		return CompareMNTWPS.compareMNT(mnt1, mnt2);
+			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = CompareMNTWPS.compareRasterMNT(codeSite, initDate, compareDate);
+			getGeoJsonFile(compareMNT, dataDir, "compare");
+			LOGGER.info("compare.json est généré dans le dossier data de votre projet ! vous pouvez le visualiser maintenant.");
+			
+		} catch (FileNotFoundException e) {
+			LOGGER.error("Fichiers introuvables", e);
+		} catch (IOException e) {
+			LOGGER.error("Erreur entrées sorties", e);
+		}
 	}
 
 	public static FeatureCollection<SimpleFeatureType, SimpleFeature> getFeatureCollections(File refLineFile)

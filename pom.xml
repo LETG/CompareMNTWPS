@@ -34,8 +34,8 @@
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-process</artifactId>
 			<version>${geotools.version}</version>
+			<scope>provided</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-process-geometry</artifactId>
@@ -45,13 +45,27 @@
 			<groupId>org.geoserver.extension</groupId>
 			<artifactId>gs-wps-core</artifactId>
 			<version>${geoserver.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-wps</artifactId>
 			<version>${geotools.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.geoserver</groupId>
+			<artifactId>gs-wms</artifactId>
+			<version>${geoserver.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-imageio-ext-gdal</artifactId>
+			<version>${geotools.version}</version>
+			<scope>provided</scope>
+		</dependency>
+	  	<dependency>
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
 			<version>20220320</version>
