@@ -1,6 +1,7 @@
 package fr.indigeo.wps.mnt;
 
 import java.awt.geom.Rectangle2D;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -20,6 +21,11 @@ import org.geoserver.wms.MapLayerInfo;
 import org.geoserver.wps.WPSException;
 import org.geoserver.wps.gs.GeoServerProcess;
 import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.coverage.grid.GridEnvelope2D;
+import org.geotools.coverage.grid.GridGeometry2D;
+import org.geotools.coverage.grid.io.AbstractGridFormat;
+import org.geotools.coverage.grid.io.GridCoverage2DReader;
+import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
@@ -27,14 +33,19 @@ import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.gce.geotiff.GeoTiffFormat;
 import org.geotools.gce.geotiff.GeoTiffReader;
+import org.geotools.geometry.DirectPosition2D;
+import org.geotools.geometry.Envelope2D;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.process.factory.StaticMethodsProcessFactory;
 import org.geotools.text.Text;
 import org.geotools.util.factory.Hints;
+import org.opengis.coverage.PointOutsideCoverageException;
+import org.opengis.coverage.grid.GridEnvelope;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.geometry.DirectPosition;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -158,7 +169,8 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 	public static FeatureCollection<SimpleFeatureType, SimpleFeature> compareRasterMNT(
 			@DescribeParameter(name = "codeSite", description = "id site on 6 char") final String codeSite,
 			@DescribeParameter(name = "initDate", description = "first date") final String initDate,
-			@DescribeParameter(name = "dateToCompare", description = "second date to compare") final String dateToCompare) throws IOException {
+			@DescribeParameter(name = "dateToCompare", description = "second date to compare") final String dateToCompare,
+			@DescribeParameter(name = "evaluationInterval", description = "in meter beetween to point") final Double interval) throws IOException {
 		
 		DefaultFeatureCollection resultFeatureCollection = null;
 
@@ -173,61 +185,61 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		// init DefaultFeatureCollection
 		SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(simpleFeatureTypeBuilder.buildFeatureType());
 		resultFeatureCollection = new DefaultFeatureCollection(null, simpleFeatureBuilder.getFeatureType());
-			
+		
 		GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING), 2154);
-		//final String LAYERNAME = "mnt";
-		
-		// get value from geoserver workspace
-		//GeoServer gs = GeoServerExtensions.bean(GeoServerImpl.class);
-		
-		// How to get specific image in imagemosaic layer how to set CQL filter on Location and date
-		// via coverage normally but doesnot work
-
-		//LayerInfo info = gs.getCatalog().getLayerByName(LAYERNAME);
-		//if( info == null ) {
-		//	throw new WPSException("Layer not found in catalog : "+LAYERNAME);
-		//}
-		//if( !info.getType().equals(PublishedType.RASTER) ) {
-		//	throw new WPSException("Layer found in catalog but not a raster one : "+LAYERNAME);
-		//}
-		//	MapLayerInfo mapInfo = new MapLayerInfo(info);
-		
-		// get tiff from datadir
-
-		Hints forceLongLat = new Hints(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.TRUE);
-		GeoTiffFormat format = new GeoTiffFormat();
 
 		String mnt1Path = getTiffPath(codeSite, initDate);
 		String mnt2Path = getTiffPath(codeSite, dateToCompare);
-			
-		GeoTiffReader reader1 = format.getReader(mnt1Path, forceLongLat);
-		GeoTiffReader reader2 = format.getReader(mnt2Path, forceLongLat);
 		
-		LOGGER.info("band " + Arrays.toString(reader1.getGridCoverageCount()));
-		LOGGER.info("band " +  Arrays.toString(reader2.getGridCoverageCount()));
+		File file1 = new File(mnt1Path);
+		File file2 = new File(mnt2Path);
+		LOGGER.debug("File 1 : " + mnt1Path);
+		LOGGER.debug("File 2 : " + mnt2Path);
 
+		AbstractGridFormat format1 = GridFormatFinder.findFormat(file1);
+		AbstractGridFormat format2 = GridFormatFinder.findFormat(file2);
+
+        GridCoverage2DReader reader1 = format1.getReader(file1);
+		GridCoverage2DReader reader2 = format2.getReader(file2);
+			
 		GridCoverage2D coverage1 = reader1.read(null);
 		GridCoverage2D coverage2 = reader2.read(null);
 
 		// create intersect beetween enveloppe to keep comparable coordinate
 		Rectangle2D rectangle = coverage1.getEnvelope2D().createIntersection(coverage2.getEnvelope2D());
-		
-		// from Xmin to Xmax
-		for(double x=rectangle.getMinX();x>rectangle.getMaxX(); x++){
-			//from Ymin to Ymax
-			for(double y=rectangle.getMinY();y>rectangle.getMaxY(); y++){
-				// compare elevation on both image
 
+		int id = 0;
+		// from Xmin to Xmax
+		for(double x = rectangle.getMinX(); x < rectangle.getMaxX() ; x=x+interval){
+			//from Ymin to Ymax
+			for(double y=rectangle.getMinY();y < rectangle.getMaxY(); y=y+interval){
+				// compare elevation on both image
+				try{
+					DirectPosition position = new DirectPosition2D(coverage1.getCoordinateReferenceSystem2D(), x, y);
+			
+					double[] elevation1 = (double[]) coverage1.evaluate(position); 
+					double[] elevation2 = (double[]) coverage2.evaluate(position); 
+
+					// remove no data values
+					if(elevation1[0] != -100 && elevation2[0] != -100){
+						
+						double elevationDiff=elevation1[0]-elevation2[0];
+						if(elevationDiff != 0){
+							LOGGER.info("Diff elevation  " + elevationDiff);
+						}
+						Coordinate coordinate = new Coordinate(x, y, elevationDiff);
+						Point point = geometryFactory.createPoint(coordinate);
+						simpleFeatureBuilder.add(point);
+						simpleFeatureBuilder.add(elevationDiff);
+						resultFeatureCollection.add(simpleFeatureBuilder.buildFeature(Integer.toString(id)));
+						id++;
+					}
+				}catch(PointOutsideCoverageException e){
+					//LOGGER.debug("Point not in coverage" ,e);
+				}
 			}
 		} 
-
-
-		LOGGER.info("Elevation model CRS is: " + coverage1.getCoordinateReferenceSystem2D());
-		
-		// get maxExtend
-	
-		//band1.ReadRaster(x, y, 1, 1, result);
-
+		LOGGER.info("Nb Points with diff : " + id);
 		return resultFeatureCollection;
 	}
 

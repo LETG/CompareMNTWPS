@@ -5,12 +5,10 @@ import java.io.IOException;
 
 import org.apache.log4j.Logger;
 import org.geotools.feature.FeatureCollection;
-import org.geotools.geojson.geom.GeometryJSON;
 import org.junit.Test;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 
-import fr.indigeo.wps.mnt.GeoJsonFileUtils;
 
 
 public class TestWPS {
@@ -47,7 +45,7 @@ public class TestWPS {
 			String initDate="20050701";
 			String compareDate="20170825";
 
-			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = CompareMNTWPS.compareRasterMNT(codeSite, initDate, compareDate);
+			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = CompareMNTWPS.compareRasterMNT(codeSite, initDate, compareDate, 0.5);
 			getGeoJsonFile(compareMNT, dataDir, "compare");
 			LOGGER.info("compare.json est généré dans le dossier data de votre projet ! vous pouvez le visualiser maintenant.");
 			
