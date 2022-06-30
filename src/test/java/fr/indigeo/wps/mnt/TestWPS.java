@@ -45,7 +45,7 @@ public class TestWPS {
 			String initDate="20050701";
 			String compareDate="20170825";
 
-			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = CompareMNTWPS.compareRasterMNT(codeSite, initDate, compareDate, 0.5);
+			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = CompareMNTWPS.compareRasterMNT(codeSite, initDate, compareDate, 1.0);
 			getGeoJsonFile(compareMNT, dataDir, "compare");
 			LOGGER.info("compare.json est généré dans le dossier data de votre projet ! vous pouvez le visualiser maintenant.");
 			

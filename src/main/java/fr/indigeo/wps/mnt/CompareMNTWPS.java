@@ -3,26 +3,9 @@ package fr.indigeo.wps.mnt;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Properties;
-
 import org.apache.log4j.Logger;
-import org.gdal.gdal.Band;
-import org.gdal.gdal.Dataset;
-import org.gdal.gdal.gdal;
-import org.gdal.gdalconst.gdalconst;
-import org.geoserver.catalog.LayerInfo;
-import org.geoserver.catalog.PublishedType;
-import org.geoserver.config.GeoServer;
-import org.geoserver.config.impl.GeoServerImpl;
-import org.geoserver.platform.GeoServerExtensions;
-import org.geoserver.wms.MapLayerInfo;
-import org.geoserver.wps.WPSException;
 import org.geoserver.wps.gs.GeoServerProcess;
 import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.GridEnvelope2D;
-import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
@@ -31,18 +14,13 @@ import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
-import org.geotools.gce.geotiff.GeoTiffFormat;
-import org.geotools.gce.geotiff.GeoTiffReader;
 import org.geotools.geometry.DirectPosition2D;
-import org.geotools.geometry.Envelope2D;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.process.factory.StaticMethodsProcessFactory;
 import org.geotools.text.Text;
-import org.geotools.util.factory.Hints;
 import org.opengis.coverage.PointOutsideCoverageException;
-import org.opengis.coverage.grid.GridEnvelope;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.geometry.DirectPosition;
@@ -224,9 +202,6 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 					if(elevation1[0] != -100 && elevation2[0] != -100){
 						
 						double elevationDiff=elevation1[0]-elevation2[0];
-						if(elevationDiff != 0){
-							LOGGER.info("Diff elevation  " + elevationDiff);
-						}
 						Coordinate coordinate = new Coordinate(x, y, elevationDiff);
 						Point point = geometryFactory.createPoint(coordinate);
 						simpleFeatureBuilder.add(point);
@@ -235,7 +210,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 						id++;
 					}
 				}catch(PointOutsideCoverageException e){
-					//LOGGER.debug("Point not in coverage" ,e);
+					LOGGER.info("Point not in coverage" ,e);
 				}
 			}
 		} 
@@ -243,19 +218,17 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		return resultFeatureCollection;
 	}
 
-	private static String getTiffPath(String codeSite, String date) throws IOException {
+
+	/**
+	 *  Get Path file name using parameter
+	 * 
+	 * @param codeSite
+	 * @param date
+	 * @return String PATH/codeSite_date.tiff
+	 */
+	private static String getTiffPath(String codeSite, String date) {
         
-		InputStream input = CompareMNTWPS.class.getClassLoader().getResourceAsStream("config.properties");
-        Properties prop = new Properties();      
-       	if (input == null) {
-            LOGGER.error("Unable to find config.properties");
-        }
-        //load a properties file from class path, inside static method
-        prop.load(input);
-        final String TIFF_FOLDER = prop.getProperty("tiff.folder");
-        if (TIFF_FOLDER == null) {
-            LOGGER.error("Unable to find folder in configuration");
-        }
+        String TIFF_FOLDER = "/data/MADDOG/imagemosaic/mnt/";
 		
         StringBuffer sbFileName = new StringBuffer(TIFF_FOLDER);
         sbFileName.append(codeSite);
