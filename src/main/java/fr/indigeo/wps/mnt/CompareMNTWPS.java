@@ -188,8 +188,9 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 
 		int nbPointResult = 0;
 		int nbPointRead = 0;
-		// Cas where input is wrond interval can not be 0
-		if(interval == 0){
+		
+		// Cas where input is wrong interval can not be 0 or negative
+		if(interval == 0 || Double.compare(interval, 0.0) < 0 ){
 			interval=(double) 1;
 		}
 		// from Xmin to Xmax
