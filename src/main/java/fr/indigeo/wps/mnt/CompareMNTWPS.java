@@ -148,7 +148,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 			@DescribeParameter(name = "codeSite", description = "id site on 6 char") final String codeSite,
 			@DescribeParameter(name = "initDate", description = "first date") final String initDate,
 			@DescribeParameter(name = "dateToCompare", description = "second date to compare") final String dateToCompare,
-			@DescribeParameter(name = "evaluationInterval", description = "in meter beetween to point") final Double interval) throws IOException {
+			@DescribeParameter(name = "evaluationInterval", description = "in meter beetween to point") Double interval) throws IOException {
 		
 		DefaultFeatureCollection resultFeatureCollection = null;
 
@@ -186,11 +186,16 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		// create intersect beetween enveloppe to keep comparable coordinate
 		Rectangle2D rectangle = coverage1.getEnvelope2D().createIntersection(coverage2.getEnvelope2D());
 
-		int id = 0;
+		int nbPointResult = 0;
+		int nbPointRead = 0;
+		// Cas where input is wrond interval can not be 0
+		if(interval == 0){
+			interval=(double) 1;
+		}
 		// from Xmin to Xmax
-		for(double x = rectangle.getMinX(); x < rectangle.getMaxX() ; x=x+interval){
+		for(double x = rectangle.getMinX(); x < (rectangle.getMaxX()-interval) ; x=x+interval){
 			//from Ymin to Ymax
-			for(double y=rectangle.getMinY();y < rectangle.getMaxY(); y=y+interval){
+			for(double y=rectangle.getMinY();y < (rectangle.getMaxY()-interval); y=y+interval){
 				// compare elevation on both image
 				try{
 					DirectPosition position = new DirectPosition2D(coverage1.getCoordinateReferenceSystem2D(), x, y);
@@ -198,7 +203,8 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 					double[] elevation1 = (double[]) coverage1.evaluate(position); 
 					double[] elevation2 = (double[]) coverage2.evaluate(position); 
 
-					// remove no data values
+					
+					// getElevation value on Band 0 and remove NoData values
 					if(elevation1[0] != -100 && elevation2[0] != -100){
 						
 						double elevationDiff=elevation1[0]-elevation2[0];
@@ -206,15 +212,16 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 						Point point = geometryFactory.createPoint(coordinate);
 						simpleFeatureBuilder.add(point);
 						simpleFeatureBuilder.add(elevationDiff);
-						resultFeatureCollection.add(simpleFeatureBuilder.buildFeature(Integer.toString(id)));
-						id++;
+						resultFeatureCollection.add(simpleFeatureBuilder.buildFeature(Integer.toString(nbPointResult)));
+						nbPointResult++;
 					}
 				}catch(PointOutsideCoverageException e){
-					LOGGER.info("Point not in coverage" ,e);
+					// Normal case in just on limit rectangle
 				}
+				nbPointRead++;
 			}
 		} 
-		LOGGER.info("Nb Points with diff : " + id);
+		LOGGER.info("Nb Points with diff : " + nbPointResult + " on " + nbPointRead + " read");
 		return resultFeatureCollection;
 	}
 
