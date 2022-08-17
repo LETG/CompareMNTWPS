@@ -37,7 +37,7 @@ public class TestWPS {
 		}
 	}
 
-	@Test
+	
 	public void testRasterComparaison() {
 		try {
 			//  compare cloud
