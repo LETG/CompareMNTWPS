@@ -1,37 +1,68 @@
 package fr.indigeo.wps.mnt;
 
-import java.awt.geom.Rectangle2D;
+import java.awt.Dimension;
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.Raster;
+import java.awt.image.RenderedImage;
+import java.awt.image.WritableRaster;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Base64;
+import java.util.Iterator;
+
+import javax.imageio.ImageIO;
+import javax.imageio.stream.ImageOutputStream;
+
+import org.apache.batik.util.Base64EncoderStream;
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.geoserver.wps.gs.GeoServerProcess;
 import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
+import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.gce.geotiff.GeoTiffWriter;
 import org.geotools.geometry.DirectPosition2D;
+import org.geotools.geometry.Envelope2D;
+import org.geotools.image.io.ImageIOExt;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.process.factory.StaticMethodsProcessFactory;
+import org.geotools.process.vector.VectorToRasterProcess;
 import org.geotools.text.Text;
 import org.opengis.coverage.PointOutsideCoverageException;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.geometry.DirectPosition;
+import org.opengis.parameter.ParameterValueGroup;
+import org.springframework.core.io.ClassPathResource;
+
+import com.thoughtworks.xstream.core.util.Base64Encoder;
+
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 
+import java.nio.file.Files;
+
 /**
- * @author Pierre Jego https://jdev.fr
+ * @author JDev https://jdev.fr
  *
  */
 @DescribeProcess(title = "Compare eleveation beetween two MNTS", description = "WPS tracking MNT differences")
@@ -39,12 +70,15 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 
 	private static final Logger LOGGER = Logger.getLogger(CompareMNTWPS.class);
 
+	private static final String INPUT_TIFF_PATH = "/data/MADDOG/imagemosaic/mnt/";
+	private static final String OUTPUT_COMPARE_PATH = "/data/MADDOG/compare/mnt/";
+
 	public CompareMNTWPS() {
 		super(Text.text("WPS to compare MNT"), "mnt", CompareMNTWPS.class);
 	}
 
 	/**
-	 * @param mnt1 reference 
+	 * @param mnt1 reference
 	 * @param mnt2 to compare
 	 * @return
 	 */
@@ -53,7 +87,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 	public static FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT(
 			@DescribeParameter(name = "mnt1", description = "first mnt to compare") final FeatureCollection<SimpleFeatureType, SimpleFeature> mnt1,
 			@DescribeParameter(name = "mnt2", description = "second mnt to compare") final FeatureCollection<SimpleFeatureType, SimpleFeature> mnt2) {
-		
+
 		DefaultFeatureCollection resultFeatureCollection = null;
 
 		LOGGER.info("Compare mnt");
@@ -65,58 +99,61 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		simpleFeatureTypeBuilder.add("elevationDiff", Double.class);
 
 		// init DefaultFeatureCollection
-		SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(simpleFeatureTypeBuilder.buildFeatureType());
+		SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(
+				simpleFeatureTypeBuilder.buildFeatureType());
 		resultFeatureCollection = new DefaultFeatureCollection(null, simpleFeatureBuilder.getFeatureType());
-			
+
 		GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING), 2154);
 
-		//For each point of MNT1 check nearest point on mnt2 and get elevation diff	
+		// For each point of MNT1 check nearest point on mnt2 and get elevation diff
 		FeatureIterator<SimpleFeature> iteratorMNT1 = mnt1.features();
-			
-		//check if the FeatureCollection contains features
+
+		// check if the FeatureCollection contains features
 		int id = 0;
-		while(iteratorMNT1.hasNext()){
+		while (iteratorMNT1.hasNext()) {
 
 			SimpleFeature featureMNT1 = iteratorMNT1.next();
 			Geometry PointMNT1 = (Geometry) featureMNT1.getDefaultGeometry();
-				
-			LOGGER.debug("Geometry type : "+ PointMNT1.getClass());
 
-			if (PointMNT1 instanceof Point){
+			LOGGER.debug("Geometry type : " + PointMNT1.getClass());
+
+			if (PointMNT1 instanceof Point) {
 				final Point ptMNT1 = (Point) PointMNT1;
 				final double pt1X = ptMNT1.getCoordinate().getX();
 				final double pt1Y = ptMNT1.getCoordinate().getY();
 				final double pt1Z = ptMNT1.getCoordinate().getZ();
-				LOGGER.debug("Point référence X : "+ ptMNT1.getCoordinate().getX() + " Y : " + ptMNT1.getCoordinate().getY() + " Z : " +ptMNT1.getCoordinate().getZ());
-			
-				//For each point of MNT1 check nearest point on mnt2 and get elevation diff	
+				LOGGER.debug("Point référence X : " + ptMNT1.getCoordinate().getX() + " Y : "
+						+ ptMNT1.getCoordinate().getY() + " Z : " + ptMNT1.getCoordinate().getZ());
+
+				// For each point of MNT1 check nearest point on mnt2 and get elevation diff
 				FeatureIterator<SimpleFeature> iteratorMNT2 = mnt2.features();
 				Boolean pointFound = false;
 
 				double referenceX = -1;
 				double referenceY = -1;
 				double elevationDiff = 0;
-				
-				while(iteratorMNT2.hasNext() && !pointFound){
+
+				while (iteratorMNT2.hasNext() && !pointFound) {
 					SimpleFeature featureMNT2 = iteratorMNT2.next();
 					Geometry PointMNT2 = (Geometry) featureMNT2.getDefaultGeometry();
 
-					if (PointMNT1 instanceof Point){
+					if (PointMNT1 instanceof Point) {
 						final Point ptMNT2 = (Point) PointMNT2;
 						final double pt2X = ptMNT2.getCoordinate().getX();
 						final double pt2Y = ptMNT2.getCoordinate().getY();
-												
-						final double xDiff = Math.abs(pt1X-pt2X);
-						final double yDiff = Math.abs(pt1Y-pt2Y);
+
+						final double xDiff = Math.abs(pt1X - pt2X);
+						final double yDiff = Math.abs(pt1Y - pt2Y);
 						// If Nearest X and Nearest Y store Z
-						if(referenceX == -1 || (xDiff<= referenceX && yDiff <= referenceY)){
+						if (referenceX == -1 || (xDiff <= referenceX && yDiff <= referenceY)) {
 							LOGGER.debug("Nearest point for the moment X,Y : " + pt2X + "," + pt2Y);
 							referenceX = Math.abs(xDiff);
 							referenceY = Math.abs(yDiff);
 							final double pt2Z = ptMNT2.getCoordinate().getZ();
 							elevationDiff = pt1Z - pt2Z;
-						};
-					}		
+						}
+						;
+					}
 				}
 				// add id
 				id = id++;
@@ -131,44 +168,30 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 			}
 		}
 		iteratorMNT1.close();
-	return resultFeatureCollection;
+		return resultFeatureCollection;
 	}
 
-
 	/**
-	 * @param codeSite reference 
+	 * @param codeSite      reference
 	 * @param initDate
 	 * @param dateToCompare
-	 * @return Tiff
+	 * @return FeatureCollection
 	 * @throws IOException
 	 */
-	@DescribeProcess(title = "Compare Raster mnt", description = "give diff raster mnt")
-	@DescribeResult(name = "rasterResult", description = "Raster with comparaison band")
-	public static FeatureCollection<SimpleFeatureType, SimpleFeature> compareRasterMNT(
+	@DescribeProcess(title = "Compare Raster mnt and get TIFF", description = "give diff raster mnt as TIFF")
+	@DescribeResult(name = "rasterResultAsTIFF", description = "Raster with comparaison band")
+	public static String compareRasterMNTTiff(
 			@DescribeParameter(name = "codeSite", description = "id site on 6 char") final String codeSite,
 			@DescribeParameter(name = "initDate", description = "first date") final String initDate,
 			@DescribeParameter(name = "dateToCompare", description = "second date to compare") final String dateToCompare,
-			@DescribeParameter(name = "evaluationInterval", description = "in meter beetween to point") Double interval) throws IOException {
-		
-		DefaultFeatureCollection resultFeatureCollection = null;
+			@DescribeParameter(name = "evaluationInterval", description = "in meter beetween to point") Double interval)
+			throws IOException {
 
 		LOGGER.info("Compare Raster mnt");
 
-		// Init simple feature to add in collection
-		SimpleFeatureTypeBuilder simpleFeatureTypeBuilder = new SimpleFeatureTypeBuilder();
-		simpleFeatureTypeBuilder.setName("featureType");
-		simpleFeatureTypeBuilder.add("geometry", Point.class);
-		simpleFeatureTypeBuilder.add("elevationDiff", Double.class);
-
-		// init DefaultFeatureCollection
-		SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(simpleFeatureTypeBuilder.buildFeatureType());
-		resultFeatureCollection = new DefaultFeatureCollection(null, simpleFeatureBuilder.getFeatureType());
-		
-		GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING), 2154);
-
 		String mnt1Path = getTiffPath(codeSite, initDate);
 		String mnt2Path = getTiffPath(codeSite, dateToCompare);
-		
+
 		File file1 = new File(mnt1Path);
 		File file2 = new File(mnt2Path);
 		LOGGER.debug("File 1 : " + mnt1Path);
@@ -177,73 +200,193 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		AbstractGridFormat format1 = GridFormatFinder.findFormat(file1);
 		AbstractGridFormat format2 = GridFormatFinder.findFormat(file2);
 
-        GridCoverage2DReader reader1 = format1.getReader(file1);
+		GridCoverage2DReader reader1 = format1.getReader(file1);
 		GridCoverage2DReader reader2 = format2.getReader(file2);
-			
+
+		GridCoverage2D coverage1 = reader1.read(null);
+		GridCoverage2D coverage2 = reader2.read(null);
+
+		double[] resolutionLevel1 = reader1.getResolutionLevels()[0];
+
+		// create intersect beetween enveloppe to keep comparable coordinate
+		GridCoverage2D cropCover = cropCovers(coverage1, coverage2);
+		DefaultFeatureCollection gridToPoints = diffByPixel(coverage1, coverage2, cropCover, resolutionLevel1[0], 0.5);
+
+		// vectorize
+		RenderedImage image = coverage2.getRenderedImage();
+		Dimension dimension = new Dimension(image.getWidth(), image.getHeight());
+		GridCoverage2D vectorized = VectorToRasterProcess.process(gridToPoints, "elevationDiff", dimension, coverage2.getEnvelope(),
+				"vectorToRaster", null);
+
+
+		GridCoverageFactory gcf = new GridCoverageFactory();
+		GridCoverage2D gc = gcf.create("name", vectorized.getRenderedImage(), vectorized.getEnvelope2D());
+
+		// save output tiff
+		String outputPath = getTiffOutputPath(codeSite, initDate, dateToCompare);
+		File outputFile = new File(outputPath);
+		GeoTiffWriter writer = new GeoTiffWriter(outputFile);
+		writer.write(gc, null);
+		writer.dispose();
+	
+		// file to base 64
+		// -----------
+		FileInputStream fis = new FileInputStream(outputPath);
+		byte[] imageBytes = fis.readAllBytes();
+		IOUtils.toByteArray(fis);
+		fis.close();
+		
+		String encoded = Base64.getEncoder().encodeToString(imageBytes);
+		return encoded;
+	}
+
+	/**
+	 * @param codeSite      reference
+	 * @param initDate
+	 * @param dateToCompare
+	 * @return FeatureCollection
+	 * @throws IOException
+	 */
+	@DescribeProcess(title = "Compare Raster mnt and get JSON", description = "give diff raster mnt as JSON")
+	@DescribeResult(name = "rasterResultAsJSON", description = "Raster with comparaison band")
+	public static FeatureCollection<SimpleFeatureType, SimpleFeature> compareRasterMNT(
+			@DescribeParameter(name = "codeSite", description = "id site on 6 char") final String codeSite,
+			@DescribeParameter(name = "initDate", description = "first date") final String initDate,
+			@DescribeParameter(name = "dateToCompare", description = "second date to compare") final String dateToCompare,
+			@DescribeParameter(name = "evaluationInterval", description = "in meter beetween to point") Double interval)
+			throws IOException {
+
+		LOGGER.info("Compare Raster mnt");
+
+		String mnt1Path = getTiffPath(codeSite, initDate);
+		String mnt2Path = getTiffPath(codeSite, dateToCompare);
+
+		File file1 = new File(mnt1Path);
+		File file2 = new File(mnt2Path);
+		LOGGER.debug("File 1 : " + mnt1Path);
+		LOGGER.debug("File 2 : " + mnt2Path);
+
+		AbstractGridFormat format1 = GridFormatFinder.findFormat(file1);
+		AbstractGridFormat format2 = GridFormatFinder.findFormat(file2);
+
+		GridCoverage2DReader reader1 = format1.getReader(file1);
+		GridCoverage2DReader reader2 = format2.getReader(file2);
+
 		GridCoverage2D coverage1 = reader1.read(null);
 		GridCoverage2D coverage2 = reader2.read(null);
 
 		// create intersect beetween enveloppe to keep comparable coordinate
-		Rectangle2D rectangle = coverage1.getEnvelope2D().createIntersection(coverage2.getEnvelope2D());
-
-		int nbPointResult = 0;
-		int nbPointRead = 0;
-		
-		// Cas where input is wrong interval can not be 0 or negative
-		if(interval == 0 || Double.compare(interval, 0.0) < 0 ){
-			interval=(double) 1;
-		}
-		// from Xmin to Xmax
-		for(double x = rectangle.getMinX(); x < (rectangle.getMaxX()-interval) ; x=x+interval){
-			//from Ymin to Ymax
-			for(double y=rectangle.getMinY();y < (rectangle.getMaxY()-interval); y=y+interval){
-				// compare elevation on both image
-				try{
-					DirectPosition position = new DirectPosition2D(coverage1.getCoordinateReferenceSystem2D(), x, y);
-			
-					double[] elevation1 = (double[]) coverage1.evaluate(position); 
-					double[] elevation2 = (double[]) coverage2.evaluate(position); 
-
-					
-					// getElevation value on Band 0 and remove NoData values
-					if(elevation1[0] != -100 && elevation2[0] != -100){
-						
-						double elevationDiff=elevation1[0]-elevation2[0];
-						Coordinate coordinate = new Coordinate(x, y, elevationDiff);
-						Point point = geometryFactory.createPoint(coordinate);
-						simpleFeatureBuilder.add(point);
-						simpleFeatureBuilder.add(elevationDiff);
-						resultFeatureCollection.add(simpleFeatureBuilder.buildFeature(Integer.toString(nbPointResult)));
-						nbPointResult++;
-					}
-				}catch(PointOutsideCoverageException e){
-					// Normal case in just on limit rectangle
-				}
-				nbPointRead++;
-			}
-		} 
-		LOGGER.info("Nb Points with diff : " + nbPointResult + " on " + nbPointRead + " read");
-		return resultFeatureCollection;
+		GridCoverage2D cropCover = cropCovers(coverage1, coverage2);
+		double[] resolutionLevel1 = reader1.getResolutionLevels()[0];
+		DefaultFeatureCollection gridToPoints = diffByPixel(coverage1, coverage2, cropCover, resolutionLevel1[0], 0.5);
+		return gridToPoints;
 	}
 
-
 	/**
-	 *  Get Path file name using parameter
+	 * Get Path file name using parameter
 	 * 
 	 * @param codeSite
 	 * @param date
 	 * @return String PATH/codeSite_date.tiff
 	 */
-	private static String getTiffPath(String codeSite, String date) {
-        
-        String TIFF_FOLDER = "/data/MADDOG/imagemosaic/mnt/";
-		
-        StringBuffer sbFileName = new StringBuffer(TIFF_FOLDER);
-        sbFileName.append(codeSite);
-        sbFileName.append("_");
-        sbFileName.append(date);
-        sbFileName.append(".tiff");
+	public static String getTiffPath(String codeSite, String date) {
 
-        return sbFileName.toString();
-    }
+		StringBuffer sbFileName = new StringBuffer(INPUT_TIFF_PATH);
+		sbFileName.append(codeSite);
+		sbFileName.append("_");
+		sbFileName.append(date);
+		sbFileName.append(".tiff");
+
+		return sbFileName.toString();
+	}
+
+	public static String getTiffOutputPath(String codeSite, String dateStart, String dateEnd) {
+
+		StringBuffer sbFileName = new StringBuffer(OUTPUT_COMPARE_PATH);
+		sbFileName.append(codeSite);
+		sbFileName.append("_");
+		sbFileName.append("compare");
+		sbFileName.append("_");
+		sbFileName.append(dateStart);
+		sbFileName.append("_");
+		sbFileName.append(dateEnd);
+		sbFileName.append(".tiff");
+
+		return sbFileName.toString();
+	}
+
+	public static GridCoverage2D cropCovers(GridCoverage2D cov1, GridCoverage2D cov2) {
+		CoverageProcessor processor = CoverageProcessor.getInstance();
+
+		// An example of manually creating the operation and parameters we want
+		final ParameterValueGroup param = processor.getOperation("CoverageCrop").getParameters();
+		param.parameter("Source").setValue(cov1);
+		param.parameter("Envelope").setValue(cov2.getEnvelope());
+
+		return (GridCoverage2D) processor.doOperation(param);
+	}
+
+	private static DefaultFeatureCollection diffByPixel(GridCoverage2D coverage1, GridCoverage2D coverage2,
+			GridCoverage2D rectangle, double interval, double factor) {
+
+		DefaultFeatureCollection resultFeatureCollection = null;
+
+		LOGGER.info("Compare mnt");
+
+		// Init simple feature to add in collection
+		SimpleFeatureTypeBuilder simpleFeatureTypeBuilder = new SimpleFeatureTypeBuilder();
+		simpleFeatureTypeBuilder.setName("featureType");
+		simpleFeatureTypeBuilder.add("geometry", Point.class);
+		simpleFeatureTypeBuilder.add("elevationDiff", Float.class);
+
+		// init DefaultFeatureCollection
+		SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(
+				simpleFeatureTypeBuilder.buildFeatureType());
+		resultFeatureCollection = new DefaultFeatureCollection(null, simpleFeatureBuilder.getFeatureType());
+
+		GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING), 2154);
+
+		int nbPointResult = 0;
+		int nbPointRead = 0;
+
+		Envelope2D covTarget = rectangle.getEnvelope2D();
+
+		double intervalResult = interval * factor;
+		// from Xmin to Xmax
+		for (double x = covTarget.getMinX(); x < (covTarget.getMaxX() - intervalResult); x = x + intervalResult) {
+
+			// from Ymin to Ymax
+			for (double y = covTarget.getMinY(); y < (covTarget.getMaxY() - intervalResult); y = y + intervalResult) {
+				// compare elevation on both image
+				try {
+					DirectPosition position = new DirectPosition2D(rectangle.getCoordinateReferenceSystem2D(), x, y);
+
+					double[] elevation1 = (double[]) coverage1.evaluate(position);
+					double[] elevation2 = (double[]) coverage2.evaluate(position);
+
+					// getElevation value on Band 0 and remove NoData values
+					float elevationDiff = (float) elevation1[0] - (float) elevation2[0];
+					Coordinate coordinate = new Coordinate(x, y, elevationDiff);
+					if (elevation1[0] != -100 && elevation2[0] != -100) {
+						// double elevationDiff=elevation1[0]-elevation2[0];
+						// Coordinate coordinate = new Coordinate(x, y, elevationDiff);
+						Point point = geometryFactory.createPoint(coordinate);
+						simpleFeatureBuilder.add(point);
+						simpleFeatureBuilder.add(elevationDiff);
+						SimpleFeature feature = simpleFeatureBuilder.buildFeature(Integer.toString(nbPointResult));
+						resultFeatureCollection.add(feature);
+						// hm.put(x +","+ y, )
+						nbPointResult++;
+					}
+				} catch (PointOutsideCoverageException e) {
+					// Normal case in just on limit rectangle
+				}
+				nbPointRead++;
+			}
+		}
+		LOGGER.info("Nb Points with diff : " + nbPointResult + " on " + nbPointRead + " read");
+
+		return resultFeatureCollection;
+	}
+
 }

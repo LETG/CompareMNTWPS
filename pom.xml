@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.indigeo.wps</groupId>
   <artifactId>compareMNTWPS</artifactId>
-  <version>1.0</version>
+  <version>1.1</version>
   <name>compareMNTWPS</name>
   
   <properties>
@@ -30,11 +30,32 @@
 	</repositories>
 
 	<dependencies>
+<!-- https://mvnrepository.com/artifact/org.im4java/im4java -->
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-shapefile</artifactId>
+            <version>${geotools.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-epsg-hsql</artifactId>
+            <version>${geotools.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-geotiff</artifactId>
+            <version>${geotools.version}</version>
+        </dependency>
 		<dependency>
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-process</artifactId>
 			<version>${geotools.version}</version>
 			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-process-raster</artifactId>
+			<version>${geotools.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.geotools</groupId>
@@ -65,6 +86,11 @@
 			<version>${geotools.version}</version>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.gdal</groupId>
+			<artifactId>gdal</artifactId>
+			<version>1.11.2</version>
+		</dependency>
 	  	<dependency>
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
@@ -78,5 +104,5 @@
             <version>${log4j.version}</version>
 			<scope>provided</scope>
         </dependency>
-	</dependencies>  
+	</dependencies>
 </project>

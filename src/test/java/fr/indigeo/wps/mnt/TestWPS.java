@@ -19,7 +19,7 @@ public class TestWPS {
 	private static final File mnt1File = new File(dataDir, "mnt1.json");
 	private static final File mnt2File = new File(dataDir, "mnt2.json");
 
-	
+	@Test
 	public void testCloudComparaison() {
 		try {
 			//  compare cloud
@@ -37,18 +37,45 @@ public class TestWPS {
 		}
 	}
 
-	
+	@Test
 	public void testRasterComparaison() {
 		try {
+			LOGGER.info("==================== START PROCESS ====================");
 			//  compare cloud
-			String codeSite="VOUGOT";
-			String initDate="20050701";
-			String compareDate="20170825";
+			String codeSite = "BOUTRO";
+			String initDate = "20061128";
+			String compareDate = "20070307";
 
-			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = CompareMNTWPS.compareRasterMNT(codeSite, initDate, compareDate, 1.0);
+			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = CompareMNTWPS.compareRasterMNT(codeSite,
+					initDate, compareDate, 1.0);
 			getGeoJsonFile(compareMNT, dataDir, "compare");
-			LOGGER.info("compare.json est généré dans le dossier data de votre projet ! vous pouvez le visualiser maintenant.");
+			LOGGER.info(
+					"compare.json est généré dans le dossier data de votre projet ! vous pouvez le visualiser maintenant.");
+			LOGGER.info("==================== END PROCESS ====================");
+
+		} catch (FileNotFoundException e) {
+			LOGGER.error("Fichiers introuvables", e);
+		} catch (IOException e) {
+			LOGGER.error("Erreur entrées sorties", e);
+		}
+	}
+
+	@Test
+	public void testRasterComparaisonTiff() {
+		try {
+			LOGGER.info("==================== START PROCESS ====================");
+			//  compare cloud
+			String codeSite = "BOUTRO";
+			String initDate = "20061128";
+			String compareDate = "20070307";
+
+			CompareMNTWPS.compareRasterMNTTiff(codeSite,
+					initDate, compareDate, 1.0);
 			
+			LOGGER.info(
+					"compare.json est généré dans le dossier data de votre projet ! vous pouvez le visualiser maintenant.");
+			LOGGER.info("==================== END PROCESS ====================");
+
 		} catch (FileNotFoundException e) {
 			LOGGER.error("Fichiers introuvables", e);
 		} catch (IOException e) {
@@ -62,8 +89,8 @@ public class TestWPS {
 		return GeoJsonFileUtils.geoJsonToFeatureCollection(refLineFile);
 	}
 
-	public static void getGeoJsonFile(FeatureCollection<SimpleFeatureType, SimpleFeature> data, File dir, String fileName) throws FileNotFoundException, IOException {
+	public static void getGeoJsonFile(FeatureCollection<SimpleFeatureType, SimpleFeature> data, File dir,
+			String fileName) throws FileNotFoundException, IOException {
 		GeoJsonFileUtils.featureCollectionToGeoJsonFile(data, dir, fileName);
 	}
-
 }
