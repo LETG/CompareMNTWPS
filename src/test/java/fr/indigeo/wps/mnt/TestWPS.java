@@ -4,7 +4,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.log4j.Logger;
+import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.feature.FeatureCollection;
+import org.geotools.gce.geotiff.GeoTiffWriter;
 import org.junit.Test;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
@@ -69,8 +71,14 @@ public class TestWPS {
 			String initDate = "20061128";
 			String compareDate = "20070307";
 
-			CompareMNTWPS.compareRasterMNTTiff(codeSite,
+			GridCoverage2D result = CompareMNTWPS.compareMNToTiff(codeSite,
 					initDate, compareDate, 1.0);
+			// save file
+			String filePath = CompareMNTWPS.getTiffOutputPath(codeSite, initDate, compareDate);
+			File file = new File(filePath);
+			GeoTiffWriter writer = new GeoTiffWriter(file);
+			writer.write(result, null);
+			writer.dispose();
 			
 			LOGGER.info(
 					"compare.json est généré dans le dossier data de votre projet ! vous pouvez le visualiser maintenant.");
