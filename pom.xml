@@ -33,16 +33,6 @@
 <!-- https://mvnrepository.com/artifact/org.im4java/im4java -->
         <dependency>
             <groupId>org.geotools</groupId>
-            <artifactId>gt-shapefile</artifactId>
-            <version>${geotools.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
-            <artifactId>gt-epsg-hsql</artifactId>
-            <version>${geotools.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.geotools</groupId>
             <artifactId>gt-geotiff</artifactId>
             <version>${geotools.version}</version>
         </dependency>

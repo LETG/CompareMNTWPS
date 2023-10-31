@@ -193,14 +193,17 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 
 		// create intersect beetween enveloppe to keep comparable coordinate
 		GridCoverage2D cropCover = cropCovers(coverage1, coverage2);
-		DefaultFeatureCollection gridToPoints = diffByPixel(coverage1, coverage2, cropCover, resolutionLevel1[0], 0.5);
+		if (interval <= 0 || interval == null) {
+			interval = resolutionLevel1[0];
+		}
+		DefaultFeatureCollection gridToPoints = diffByPixel(coverage1, coverage2, cropCover, interval);
 
 		// vectorize
 		RenderedImage image = coverage2.getRenderedImage();
 		Dimension dimension = new Dimension(image.getWidth(), image.getHeight());
-		GridCoverage2D vectorized = VectorToRasterProcess.process(gridToPoints, "elevationDiff", dimension, coverage2.getEnvelope(),
+		GridCoverage2D vectorized = VectorToRasterProcess.process(gridToPoints, "elevationDiff", dimension,
+				coverage2.getEnvelope(),
 				"vectorToRaster", null);
-
 
 		GridCoverageFactory gcf = new GridCoverageFactory();
 		GridCoverage2D gc = gcf.create("name", vectorized.getRenderedImage(), vectorized.getEnvelope2D());
@@ -245,7 +248,10 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		// create intersect beetween enveloppe to keep comparable coordinate
 		GridCoverage2D cropCover = cropCovers(coverage1, coverage2);
 		double[] resolutionLevel1 = reader1.getResolutionLevels()[0];
-		DefaultFeatureCollection gridToPoints = diffByPixel(coverage1, coverage2, cropCover, resolutionLevel1[0], 0.5);
+		if (interval <= 0 || interval == null) {
+			interval = resolutionLevel1[0];
+		}
+		DefaultFeatureCollection gridToPoints = diffByPixel(coverage1, coverage2, cropCover, interval);
 		return gridToPoints;
 	}
 
@@ -293,8 +299,16 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		return (GridCoverage2D) processor.doOperation(param);
 	}
 
+	/**
+	 * 
+	 * @param coverage1
+	 * @param coverage2
+	 * @param rectangle
+	 * @param interval  space between two points in meter
+	 * @return
+	 */
 	private static DefaultFeatureCollection diffByPixel(GridCoverage2D coverage1, GridCoverage2D coverage2,
-			GridCoverage2D rectangle, double interval, double factor) {
+			GridCoverage2D rectangle, double interval) {
 
 		DefaultFeatureCollection resultFeatureCollection = null;
 
@@ -318,12 +332,11 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 
 		Envelope2D covTarget = rectangle.getEnvelope2D();
 
-		double intervalResult = interval * factor;
 		// from Xmin to Xmax
-		for (double x = covTarget.getMinX(); x < (covTarget.getMaxX() - intervalResult); x = x + intervalResult) {
+		for (double x = covTarget.getMinX(); x < (covTarget.getMaxX() - interval); x = x + interval) {
 
 			// from Ymin to Ymax
-			for (double y = covTarget.getMinY(); y < (covTarget.getMaxY() - intervalResult); y = y + intervalResult) {
+			for (double y = covTarget.getMinY(); y < (covTarget.getMaxY() - interval); y = y + interval) {
 				// compare elevation on both image
 				try {
 					DirectPosition position = new DirectPosition2D(rectangle.getCoordinateReferenceSystem2D(), x, y);
