@@ -1,26 +1,9 @@
 package fr.indigeo.wps.mnt;
 
 import java.awt.Dimension;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferByte;
-import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
-import java.awt.image.WritableRaster;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Base64;
-import java.util.Iterator;
-
-import javax.imageio.ImageIO;
-import javax.imageio.stream.ImageOutputStream;
-
-import org.apache.batik.util.Base64EncoderStream;
-import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.geoserver.wps.gs.GeoServerProcess;
 import org.geotools.coverage.grid.GridCoverage2D;
@@ -180,7 +163,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 	 */
 	@DescribeProcess(title = "Compare Raster mnt and get TIFF", description = "give diff raster mnt as TIFF")
 	@DescribeResult(name = "rasterResultAsTIFF", description = "Raster with comparaison band")
-	public static String compareRasterMNTTiff(
+	public static GridCoverage2D compareMNToTiff(
 			@DescribeParameter(name = "codeSite", description = "id site on 6 char") final String codeSite,
 			@DescribeParameter(name = "initDate", description = "first date") final String initDate,
 			@DescribeParameter(name = "dateToCompare", description = "second date to compare") final String dateToCompare,
@@ -221,23 +204,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 
 		GridCoverageFactory gcf = new GridCoverageFactory();
 		GridCoverage2D gc = gcf.create("name", vectorized.getRenderedImage(), vectorized.getEnvelope2D());
-
-		// save output tiff
-		String outputPath = getTiffOutputPath(codeSite, initDate, dateToCompare);
-		File outputFile = new File(outputPath);
-		GeoTiffWriter writer = new GeoTiffWriter(outputFile);
-		writer.write(gc, null);
-		writer.dispose();
-	
-		// file to base 64
-		// -----------
-		FileInputStream fis = new FileInputStream(outputPath);
-		byte[] imageBytes = fis.readAllBytes();
-		IOUtils.toByteArray(fis);
-		fis.close();
-		
-		String encoded = Base64.getEncoder().encodeToString(imageBytes);
-		return encoded;
+		return gc;
 	}
 
 	/**
