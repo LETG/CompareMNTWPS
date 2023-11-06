@@ -193,7 +193,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 
 		// create intersect beetween enveloppe to keep comparable coordinate
 		GridCoverage2D cropCover = cropCovers(coverage1, coverage2);
-		if (interval <= 0 || interval == null) {
+		if (interval == null || interval <= 0) {
 			interval = resolutionLevel1[0];
 		}
 		DefaultFeatureCollection gridToPoints = diffByPixel(coverage1, coverage2, cropCover, interval);
@@ -248,7 +248,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 		// create intersect beetween enveloppe to keep comparable coordinate
 		GridCoverage2D cropCover = cropCovers(coverage1, coverage2);
 		double[] resolutionLevel1 = reader1.getResolutionLevels()[0];
-		if (interval <= 0 || interval == null) {
+		if (interval == null || interval <= 0) {
 			interval = resolutionLevel1[0];
 		}
 		DefaultFeatureCollection gridToPoints = diffByPixel(coverage1, coverage2, cropCover, interval);

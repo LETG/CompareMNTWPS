@@ -49,7 +49,7 @@ public class TestWPS {
 			String compareDate = "20070307";
 
 			FeatureCollection<SimpleFeatureType, SimpleFeature> compareMNT = CompareMNTWPS.compareRasterMNT(codeSite,
-					initDate, compareDate, 1.0);
+					initDate, compareDate, 0.0);
 			getGeoJsonFile(compareMNT, dataDir, "compare");
 			LOGGER.info(
 					"compare.json est généré dans le dossier data de votre projet ! vous pouvez le visualiser maintenant.");
@@ -72,7 +72,7 @@ public class TestWPS {
 			String compareDate = "20070307";
 
 			GridCoverage2D result = CompareMNTWPS.compareMNToTiff(codeSite,
-					initDate, compareDate, 1.0);
+					initDate, compareDate, 0.0);
 			// save file
 			String filePath = CompareMNTWPS.getTiffOutputPath(codeSite, initDate, compareDate);
 			File file = new File(filePath);
