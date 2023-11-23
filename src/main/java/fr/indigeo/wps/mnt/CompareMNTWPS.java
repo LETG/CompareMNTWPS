@@ -17,10 +17,8 @@ import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
-import org.geotools.gce.geotiff.GeoTiffWriter;
 import org.geotools.geometry.DirectPosition2D;
 import org.geotools.geometry.Envelope2D;
-import org.geotools.image.io.ImageIOExt;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
@@ -32,17 +30,12 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.geometry.DirectPosition;
 import org.opengis.parameter.ParameterValueGroup;
-import org.springframework.core.io.ClassPathResource;
-
-import com.thoughtworks.xstream.core.util.Base64Encoder;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
-
-import java.nio.file.Files;
 
 /**
  * @author JDev https://jdev.fr
@@ -339,15 +332,27 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 			for (double y = covTarget.getMinY(); y < (covTarget.getMaxY() - interval); y = y + interval) {
 				// compare elevation on both image
 				try {
+					double elevation1 = 0;
+					double elevation2 = 0;
 					DirectPosition position = new DirectPosition2D(rectangle.getCoordinateReferenceSystem2D(), x, y);
+					try {
+						// some TIFF return double pixel value
+						double[] elevation1Value = (double[]) coverage1.evaluate(position);
+						double[] elevation2Value = (double[]) coverage2.evaluate(position);
+						elevation1 = (double) elevation1Value[0];
+						elevation2 = (double) elevation2Value[0];
+					} catch (ClassCastException e) {
+						// some TIFF return float pixel value
+						float[] elevation1Value = (float[]) coverage1.evaluate(position);
+						float[] elevation2Value = (float[]) coverage2.evaluate(position);
+						elevation1 = (double) elevation1Value[0];
+						elevation2 = (double) elevation2Value[0];
+					}
 
-					double[] elevation1 = (double[]) coverage1.evaluate(position);
-					double[] elevation2 = (double[]) coverage2.evaluate(position);
-
-					// getElevation value on Band 0 and remove NoData values
-					float elevationDiff = (float) elevation1[0] - (float) elevation2[0];
-					Coordinate coordinate = new Coordinate(x, y, elevationDiff);
-					if (elevation1[0] != -100 && elevation2[0] != -100) {
+					if (elevation1 > -100.0 && elevation2 > -100.0) {
+						// getElevation value on Band 0 and remove NoData values
+						double elevationDiff = elevation1 - elevation2;
+						Coordinate coordinate = new Coordinate(x, y, elevationDiff);
 						// double elevationDiff=elevation1[0]-elevation2[0];
 						// Coordinate coordinate = new Coordinate(x, y, elevationDiff);
 						Point point = geometryFactory.createPoint(coordinate);
