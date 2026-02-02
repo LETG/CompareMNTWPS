@@ -48,6 +48,15 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 
 	private static final String INPUT_TIFF_PATH = "/data/MADDOG/imagemosaic/mnt/";
 	private static final String OUTPUT_COMPARE_PATH = "/data/MADDOG/compare/mnt/";
+	private static final String INPUT_TIFF_PATH_PROP = "comparemnt.input.path";
+	private static final String OUTPUT_TIFF_PATH_PROP = "comparemnt.output.path";
+
+	private static String normalizeDir(String dir) {
+		if (dir == null || dir.isEmpty()) {
+			return "";
+		}
+		return dir.endsWith(File.separator) ? dir : dir + File.separator;
+	}
 
 	public CompareMNTWPS() {
 		super(Text.text("WPS to compare MNT"), "mnt", CompareMNTWPS.class);
@@ -163,7 +172,7 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 			@DescribeParameter(name = "evaluationInterval", description = "in meter beetween to point") Double interval)
 			throws IOException {
 
-		LOGGER.info("Compare Raster mnt");
+		LOGGER.info("Compare Raster mnt in TIFF");
 
 		String mnt1Path = getTiffPath(codeSite, initDate);
 		String mnt2Path = getTiffPath(codeSite, dateToCompare);
@@ -257,7 +266,8 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 	 */
 	public static String getTiffPath(String codeSite, String date) {
 
-		StringBuffer sbFileName = new StringBuffer(INPUT_TIFF_PATH);
+		String inputDir = System.getProperty(INPUT_TIFF_PATH_PROP, INPUT_TIFF_PATH);
+		StringBuffer sbFileName = new StringBuffer(normalizeDir(inputDir));
 		sbFileName.append(codeSite);
 		sbFileName.append("_");
 		sbFileName.append(date);
@@ -268,7 +278,8 @@ public class CompareMNTWPS extends StaticMethodsProcessFactory<CompareMNTWPS> im
 
 	public static String getTiffOutputPath(String codeSite, String dateStart, String dateEnd) {
 
-		StringBuffer sbFileName = new StringBuffer(OUTPUT_COMPARE_PATH);
+		String outputDir = System.getProperty(OUTPUT_TIFF_PATH_PROP, OUTPUT_COMPARE_PATH);
+		StringBuffer sbFileName = new StringBuffer(normalizeDir(outputDir));
 		sbFileName.append(codeSite);
 		sbFileName.append("_");
 		sbFileName.append("compare");
