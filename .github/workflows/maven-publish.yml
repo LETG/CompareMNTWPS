@@ -5,7 +5,7 @@ name: Build compareMNTWPS jar
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '*' ]
   pull_request:
     branches: [ main ]
 
@@ -26,7 +26,7 @@ jobs:
       run: mvn -B package --file pom.xml
     - name: store jar
       run: mkdir staging && cp target/*.jar staging
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@main
       with:
         name: Package
         path: staging
